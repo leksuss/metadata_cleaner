@@ -131,3 +131,5 @@ dmypy.json
 # custom
 .DS_Store
 .idea/
+playground/
+upload/

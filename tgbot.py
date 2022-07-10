@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 from libmat2 import parser_factory
 
 
-
-UPLOAD_FOLDER = 'upload/'
 ALLOWED_EXTENSIONS = {'pdf'}
 
 dp = Dispatcher()
@@ -45,7 +43,7 @@ async def prepare_message(message: types.document):
         return
 
 
-    local_filepath = UPLOAD_FOLDER + file_obj.file_name
+    local_filepath = os.path.join(os.getenv('UPLOAD_FOLDER'), file_obj.file_name)
     try:
         await bot.download_file(file.file_path, local_filepath)
     except Exception:

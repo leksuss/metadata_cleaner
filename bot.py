@@ -6,14 +6,16 @@ from aiogram.types import FSInputFile
 from dotenv import load_dotenv
 from libmat2 import parser_factory
 
+import bot_logger
+
 
 ALLOWED_EXTENSIONS = {'pdf'}
 
 dp = Dispatcher()
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    _, _, ext = filename.rpartition('.')
+    return ext.lower() in ALLOWED_EXTENSIONS
 
 @dp.message(commands=["start"])
 async def command_start_handler(message: types.message):
@@ -24,9 +26,10 @@ async def command_start_handler(message: types.message):
         '''
     )
 
-
 @dp.message()
 async def prepare_message(message: types.document):
+
+    user_id = message.from_user.id
 
     try:
         file_obj = message.document
@@ -34,21 +37,20 @@ async def prepare_message(message: types.document):
 
     except Exception as e:
         await message.answer('Пожалуйста, пришлите файл')
-        logger.info("User send not a file")
+        logger.warning(f"user_id:{user_id} - User send not a file")
         return
 
     if not allowed_file(file_obj.file_name):
         await message.answer('Данный тип файлов не поддерживается. Поддерживаются: ' + ', '.join(ALLOWED_EXTENSIONS))
-        logger.info("User send wrong file format")
+        logger.warning(f"user_id:{user_id} - User send wrong file format")
         return
-
 
     local_filepath = os.path.join(os.getenv('UPLOAD_FOLDER'), file_obj.file_name)
     try:
         await bot.download_file(file.file_path, local_filepath)
     except Exception:
         await message.answer('Проблема с сохранением файла на сервере, обратитесь к разработчику')
-        logger.error("Can't save file on server. Permissions, wrong path, UPLOAD_FOLDER does not exist?")
+        logger.error(f"user_id:{user_id} - Can't save file. Permissions, wrong path, UPLOAD_FOLDER does not exist?")
         return
 
     try:
@@ -59,20 +61,15 @@ async def prepare_message(message: types.document):
         os.rename(parser.output_filename, local_filepath)
         output_file = FSInputFile(local_filepath)
         await message.answer_document(output_file)
+        logger.info(f"user_id:{user_id} - Successfully clean file metadata")
 
     except ValueError:
         await message.answer('Ошибка чистки метаданных. Неверный формат файла?')
-        logger.warning("Can't clean metadata. Wrong file format or something with mat2")
+        logger.error(f"user_id:{user_id} - Can't clean file metadata. Wrong file format or something with mat2")
         return
-
 
 if __name__ == "__main__":
     load_dotenv()
     bot = Bot(os.getenv('TOKEN'))
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-    )
-    logger = logging.getLogger(__name__)
-    logger.info("Starting bot")
+    logger = bot_logger.error_logger_in_file(__name__)
     dp.run_polling(bot)

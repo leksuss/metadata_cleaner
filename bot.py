@@ -1,4 +1,3 @@
-import logging
 import os
 
 from aiogram import Bot, Dispatcher, types
@@ -7,21 +6,19 @@ from dotenv import load_dotenv
 from libmat2 import parser_factory
 
 import bot_logger
-
-
-ALLOWED_EXTENSIONS = {'pdf'}
+from config import config
 
 dp = Dispatcher()
 
 def allowed_file(filename):
     _, _, ext = filename.rpartition('.')
-    return ext.lower() in ALLOWED_EXTENSIONS
+    return ext.lower() in config['ALLOWED_EXTENSIONS']
 
 @dp.message(commands=["start"])
 async def command_start_handler(message: types.message):
     await message.answer(f'''
 Привет! Я чищу метадату в файлах. Поддерживаются следующие форматы:
-{', '.join(ALLOWED_EXTENSIONS)}
+{', '.join(config['ALLOWED_EXTENSIONS'])}
 Папки и архивы пока не работают, но можно кидать сразу несколько файлов! 
         '''
     )
@@ -41,11 +38,11 @@ async def prepare_message(message: types.document):
         return
 
     if not allowed_file(file_obj.file_name):
-        await message.answer('Данный тип файлов не поддерживается. Поддерживаются: ' + ', '.join(ALLOWED_EXTENSIONS))
+        await message.answer('Данный тип файлов не поддерживается. Поддерживаются: ' + ', '.join(config['ALLOWED_EXTENSIONS']))
         logger.warning(f"user_id:{user_id} - User send wrong file format")
         return
 
-    local_filepath = os.path.join(os.getenv('UPLOAD_FOLDER'), file_obj.file_name)
+    local_filepath = os.path.join(config['UPLOAD_FOLDER'], file_obj.file_name)
     try:
         await bot.download_file(file.file_path, local_filepath)
     except Exception:
@@ -70,6 +67,6 @@ async def prepare_message(message: types.document):
 
 if __name__ == "__main__":
     load_dotenv()
-    bot = Bot(os.getenv('TOKEN'))
+    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
     logger = bot_logger.error_logger_in_file(__name__)
     dp.run_polling(bot)
